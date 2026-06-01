@@ -7,11 +7,9 @@
 <title>Detector de Emociones 😊</title>
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
 
 <style>
-
 body{
     background:#f5f5f5;
 }
@@ -31,8 +29,8 @@ body{
 canvas{
     border-radius:10px;
 }
-
 </style>
+
 </head>
 
 <body>
@@ -40,42 +38,29 @@ canvas{
 <div class="container text-center mt-4">
 
     <h1>Detector de Emociones 😊</h1>
-    <!-- 🔥 BOTONES DE NAVEGACIÓN (AQUÍ VA) -->
-    <div class="mt-3">
+
+    <!-- 🔥 BOTONES -->
+    <div class="mt-3 mb-3">
 
         <a href="../index.html" class="btn btn-dark">
             🏠 Inicio
         </a>
 
-        <a href="../gato y perro/index.html" class="btn btn-success">
+        <a href="../gato_y_perro/index.html" class="btn btn-success">
             🐶🐱 Ir a Gatos y Perros
-        </a>    
+        </a>
 
-    <video
-        id="video"
-        autoplay
-        playsinline
-        style="display:none;">
-    </video>
+    </div>
 
-    <canvas
-        id="canvas"
-        width="400"
-        height="400">
-    </canvas>
+    <video id="video" autoplay playsinline style="display:none;"></video>
 
-    <canvas
-        id="otrocanvas"
-        width="48"
-        height="48"
-        style="display:none;">
-    </canvas>
+    <canvas id="canvas" width="400" height="400"></canvas>
+
+    <canvas id="otrocanvas" width="48" height="48" style="display:none;"></canvas>
 
     <br>
 
-    <button
-        class="btn btn-primary mt-3"
-        onclick="cambiarCamara()">
+    <button class="btn btn-primary mt-3" onclick="cambiarCamara()">
         Cambiar cámara
     </button>
 
@@ -105,215 +90,112 @@ const emociones = [
     "😨 Fear",
     "😊 Happy",
     "😢 Sad",
-    "😲 Suprise"
+    "😲 Surprise"
 ];
 
 async function cargarModelo(){
-
-    console.log("Cargando modelo...");
-
-    modelo = await tf.loadLayersModel(
-        "./model.json"
-    );
-
-    console.log("Modelo cargado");
+    modelo = await tf.loadLayersModel("./model.json");
 }
 
 function mostrarCamara(){
 
     navigator.mediaDevices.getUserMedia({
-        audio:false,
         video:{
             width:tamano,
             height:tamano,
             facingMode:facingMode
         }
     })
-
     .then(stream=>{
-
         currentStream = stream;
-
         video.srcObject = stream;
-
         procesarCamara();
-
         predecir();
-
     })
-
     .catch(err=>{
-
-        console.error(err);
-
         alert("No se pudo acceder a la cámara");
-
+        console.error(err);
     });
-
 }
 
 function cambiarCamara(){
 
     if(currentStream){
-
-        currentStream
-        .getTracks()
-        .forEach(track=>track.stop());
-
+        currentStream.getTracks().forEach(track=>track.stop());
     }
 
-    facingMode =
-        facingMode === "user"
-        ? "environment"
-        : "user";
+    facingMode = facingMode === "user" ? "environment" : "user";
 
     mostrarCamara();
 }
 
 function procesarCamara(){
 
-    ctx.drawImage(
-        video,
-        0,
-        0,
-        tamano,
-        tamano
-    );
-
-    requestAnimationFrame(
-        procesarCamara
-    );
+    ctx.drawImage(video,0,0,tamano,tamano);
+    requestAnimationFrame(procesarCamara);
 }
 
 function predecir(){
 
     if(!modelo){
-
-        setTimeout(
-            predecir,
-            200
-        );
-
+        setTimeout(predecir,200);
         return;
     }
 
-    resample_single(
-        canvas,
-        48,
-        48,
-        otrocanvas
-    );
+    resample_single(canvas,48,48,otrocanvas);
 
-    let ctx2 =
-        otrocanvas.getContext("2d");
+    let ctx2 = otrocanvas.getContext("2d");
 
-    let imgData =
-        ctx2.getImageData(
-            0,
-            0,
-            48,
-            48
-        );
+    let imgData = ctx2.getImageData(0,0,48,48);
 
     let arr = [];
-
     let fila = [];
 
-    for(
-        let i=0;
-        i<imgData.data.length;
-        i+=4
-    ){
+    for(let i=0;i<imgData.data.length;i+=4){
 
-        let r =
-            imgData.data[i] / 255;
+        let r = imgData.data[i]/255;
+        let g = imgData.data[i+1]/255;
+        let b = imgData.data[i+2]/255;
 
-        let g =
-            imgData.data[i+1] / 255;
-
-        let b =
-            imgData.data[i+2] / 255;
-
-        let gris =
-            (r+g+b)/3;
+        let gris = (r+g+b)/3;
 
         fila.push([gris]);
 
         if(fila.length === 48){
-
             arr.push(fila);
-
             fila = [];
-
         }
-
     }
 
-    let tensor =
-        tf.tensor4d([arr]);
+    // 🔥 FIX IMPORTANTE
+    let tensor = tf.tensor4d(arr, [1,48,48,1]);
 
-    let predicciones =
-        modelo
-        .predict(tensor)
-        .dataSync();
+    let predicciones = modelo.predict(tensor).dataSync();
 
-    let indice =
-        predicciones.indexOf(
-            Math.max(
-                ...predicciones
-            )
-        );
+    let indice = predicciones.indexOf(Math.max(...predicciones));
 
-    let confianza =
-        predicciones[indice] * 100;
+    let confianza = predicciones[indice]*100;
 
-    document
-        .getElementById("resultado")
-        .innerText =
-        emociones[indice];
+    document.getElementById("resultado").innerText = emociones[indice];
 
-    document
-        .getElementById("confianza")
-        .innerText =
-        "Confianza: " +
-        confianza.toFixed(2) +
-        "%";
+    document.getElementById("confianza").innerText =
+        "Confianza: " + confianza.toFixed(2) + "%";
 
     tensor.dispose();
 
-    setTimeout(
-        predecir,
-        200
-    );
+    setTimeout(predecir,200);
 }
 
-function resample_single(
-    canvas,
-    width,
-    height,
-    resize_canvas
-){
+function resample_single(canvas,width,height,resize_canvas){
 
-    let ctx2 =
-        resize_canvas.getContext(
-            "2d"
-        );
+    let ctx2 = resize_canvas.getContext("2d");
 
-    ctx2.drawImage(
-        canvas,
-        0,
-        0,
-        width,
-        height
-    );
+    ctx2.drawImage(canvas,0,0,width,height);
 }
 
 window.onload = async()=>{
-
     await cargarModelo();
-
     mostrarCamara();
-
 };
 
 </script>
